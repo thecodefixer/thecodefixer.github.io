@@ -38,7 +38,8 @@ function trackIntroView() {
         
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
-            'Sk_web': 'Sk_web_intro_shown'
+            'Sk_web': 'Sk_web_intro_shown',
+            'Sk_view': 'intro'
         });
         
         console.log('📊 Intro view tracked');
@@ -85,7 +86,8 @@ function trackWordAttemptFailed(selectedLetters) {
         
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
-            'Sk_web': 'Sk_web_word_failed'
+            'Sk_web': 'Sk_web_word_failed',
+            'Sk_letters_count': selectedLetters.length
         });
         
         console.log('📊 Failed word attempt tracked');
@@ -152,7 +154,9 @@ function trackGameTimeout(currentScore, wordsFound, totalWords) {
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
             'Sk_web': 'Sk_web_game_timeout',
-            'Sk_score': currentScore
+            'Sk_score': currentScore,
+            'Sk_words_found': wordsFound,
+            'Sk_total_words': totalWords
         });
         
         console.log('📊 Game timeout tracked');
@@ -174,6 +178,7 @@ function trackHintUsed(wordNumber, penaltyPoints) {
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
             'Sk_web': 'Sk_web_hint_used',
+            'Sk_word_number': wordNumber,
             'Sk_penalty': penaltyPoints
         });
         
@@ -195,7 +200,7 @@ function trackRefreshGame(source = 'button') {
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
             'Sk_web': 'Sk_web_game_refresh',
-            'Sk_source': source
+            'Sk_source_refresh': source
         });
         
         console.log('📊 Game refresh tracked from:', source);
@@ -215,7 +220,8 @@ function trackBackButton(source = 'header') {
         
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
-            'Sk_web': 'Sk_web_back_click'
+            'Sk_web': 'Sk_web_back_click',
+            'Sk_source': source
         });
         
         // GA4 event (EXACT format from old game)
@@ -242,7 +248,7 @@ function trackModalClose(modalType = 'game_over') {
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
             'Sk_web': 'Sk_web_modal_close',
-            'Sk_modal': modalType
+            'Sk_modal_type': modalType
         });
         
         // GA4 event (EXACT format from old game)
@@ -291,7 +297,8 @@ function trackSettingChange(settingName, newValue) {
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
             'Sk_web': 'Sk_web_setting_change',
-            'Sk_setting': settingName
+            'Sk_setting': settingName,
+            'Sk_value': newValue
         });
         
         console.log('📊 Setting changed:', settingName, '=', newValue);
@@ -374,7 +381,8 @@ function trackSoundToggle(isEnabled) {
         
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
-            'Sk_web': isEnabled ? 'Sk_web_sound_on' : 'Sk_web_sound_off'
+            'Sk_web': isEnabled ? 'Sk_web_sound_on' : 'Sk_web_sound_off',
+            'Sk_enabled': isEnabled
         });
         
         console.log('📊 Sound toggled:', isEnabled ? 'ON' : 'OFF');
@@ -394,7 +402,8 @@ function trackVibrationToggle(isEnabled) {
         
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
-            'Sk_web': isEnabled ? 'Sk_web_vibration_on' : 'Sk_web_vibration_off'
+            'Sk_web': isEnabled ? 'Sk_web_vibration_on' : 'Sk_web_vibration_off',
+            'Sk_enabled': isEnabled
         });
         
         console.log('📊 Vibration toggled:', isEnabled ? 'ON' : 'OFF');
@@ -413,7 +422,8 @@ function trackWebToAppBannerView() {
         
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
-            'Sk_web': 'Sk_web_app_banner_shown'
+            'Sk_web': 'Sk_web_app_banner_shown',
+            'Sk_banner_type': 'app_install'
         });
         
         console.log('📊 App banner view tracked');
@@ -453,7 +463,8 @@ function trackWebToAppBannerClose() {
         
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
-            'Sk_web': 'Sk_web_app_banner_closed'
+            'Sk_web': 'Sk_web_app_banner_closed',
+            'Sk_banner_type': 'app_install'
         });
         
         console.log('📊 App banner close tracked');
@@ -475,7 +486,8 @@ function trackError(errorType, errorMessage) {
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
             'Sk_web': 'Sk_web_error',
-            'Sk_error_type': errorType
+            'Sk_error_type': errorType,
+            'Sk_error_message': errorMessage
         });
         
         console.error('📊 Error tracked:', errorType, errorMessage);
@@ -496,7 +508,7 @@ function trackPageLoad(loadTime) {
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
             'Sk_web': 'Sk_web_page_loaded',
-            'Sk_load_time': loadTime
+            'Sk_load_time_ms': loadTime
         });
         
         console.log('📊 Page load tracked:', loadTime, 'ms');
@@ -517,7 +529,7 @@ function trackGameLoadTime(loadTime) {
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
             'Sk_web': 'Sk_web_game_loaded',
-            'Sk_load_time': loadTime
+            'Sk_load_time_ms': loadTime
         });
         
         console.log('📊 Game load tracked:', loadTime, 'ms');
@@ -529,15 +541,17 @@ function trackGameLoadTime(loadTime) {
 // 24. Session Start
 function trackSessionStart() {
     try {
+        const timestamp = new Date().toISOString();
         window.dataLayer.push({
             'event': 'shabdkhoj',
             'games': 'session_start',
-            'timestamp': new Date().toISOString()
+            'timestamp': timestamp
         });
         
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
-            'Sk_web': 'Sk_web_session_start'
+            'Sk_web': 'Sk_web_session_start',
+            'Sk_timestamp': timestamp
         });
         
         console.log('📊 Session start tracked');
@@ -558,7 +572,7 @@ function trackSessionEnd(duration) {
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
             'Sk_web': 'Sk_web_session_end',
-            'Sk_duration': duration
+            'Sk_duration_seconds': duration
         });
         
         console.log('📊 Session end tracked:', duration, 'seconds');
