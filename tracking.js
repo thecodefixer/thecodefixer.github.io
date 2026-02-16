@@ -10,19 +10,25 @@ window.dataLayer = window.dataLayer || [];
 // 1. Game Start Events (EXACT match with old game)
 function trackGameStart() {
     try {
+        const timestamp = new Date().toISOString();
+        
         // Event 1: Generic platform event
         window.dataLayer.push({
             'event': 'shabdkhoj',
-            'games': 'game_start'
+            'games': 'game_start',
+            'timestamp': timestamp,
+            'platform': 'web'
         });
         
         // Event 2: Specific web platform event
         window.dataLayer.push({
             'event': 'Shabdkhoj_Web',
-            'Sk_web': 'Sk_web_game_started'
+            'Sk_web': 'Sk_web_game_started',
+            'Sk_platform': 'web',
+            'Sk_timestamp': timestamp
         });
         
-        console.log('📊 Game start events tracked');
+        console.log('📊 Game start events tracked with parameters:', { platform: 'web', timestamp });
     } catch (error) {
         console.error('Error tracking game start:', error);
     }
@@ -42,7 +48,7 @@ function trackIntroView() {
             'Sk_view': 'intro'
         });
         
-        console.log('📊 Intro view tracked');
+        console.log('📊 Intro view tracked with parameters:', { Sk_view: 'intro' });
     } catch (error) {
         console.error('Error tracking intro view:', error);
     }
@@ -69,7 +75,7 @@ function trackWordFound(word, points, timeTaken, wordNumber, totalWords) {
             'Sk_progress': Math.round((wordNumber / totalWords) * 100)
         });
         
-        console.log('📊 Word found tracked:', word.length, 'letters,', points, 'points');
+        console.log('📊 Word found tracked with parameters:', { Sk_word_length: word.length, Sk_points: points, Sk_progress: Math.round((wordNumber / totalWords) * 100) });
     } catch (error) {
         console.error('Error tracking word found:', error);
     }
@@ -90,7 +96,7 @@ function trackWordAttemptFailed(selectedLetters) {
             'Sk_letters_count': selectedLetters.length
         });
         
-        console.log('📊 Failed word attempt tracked');
+        console.log('📊 Failed word attempt tracked with parameters:', { Sk_letters_count: selectedLetters.length });
     } catch (error) {
         console.error('Error tracking failed attempt:', error);
     }
@@ -134,7 +140,7 @@ function trackGameComplete(finalScore, bestScore, wordsFound, totalWords, timeTa
             'coins_earned': coinsEarned
         });
         
-        console.log('📊 Game complete tracked:', finalScore, 'points,', coinsEarned, 'coins');
+        console.log('📊 Game complete tracked with parameters:', { Sk_score: finalScore, Sk_best_score: bestScore, Sk_completion: completionRate, Sk_coins: coinsEarned });
     } catch (error) {
         console.error('Error tracking game complete:', error);
     }
@@ -159,7 +165,7 @@ function trackGameTimeout(currentScore, wordsFound, totalWords) {
             'Sk_total_words': totalWords
         });
         
-        console.log('📊 Game timeout tracked');
+        console.log('📊 Game timeout tracked with parameters:', { Sk_score: currentScore, Sk_words_found: wordsFound, Sk_total_words: totalWords });
     } catch (error) {
         console.error('Error tracking timeout:', error);
     }
@@ -182,7 +188,7 @@ function trackHintUsed(wordNumber, penaltyPoints) {
             'Sk_penalty': penaltyPoints
         });
         
-        console.log('📊 Hint used tracked');
+        console.log('📊 Hint used tracked with parameters:', { Sk_word_number: wordNumber, Sk_penalty: penaltyPoints });
     } catch (error) {
         console.error('Error tracking hint:', error);
     }
@@ -203,7 +209,7 @@ function trackRefreshGame(source = 'button') {
             'Sk_source_refresh': source
         });
         
-        console.log('📊 Game refresh tracked from:', source);
+        console.log('📊 Game refresh tracked with parameters:', { Sk_source_refresh: source });
     } catch (error) {
         console.error('Error tracking refresh:', error);
     }
@@ -230,7 +236,7 @@ function trackBackButton(source = 'header') {
             'Augame': 'crossword_exit'
         });
         
-        console.log('📊 Back button tracked (crossword_exit)');
+        console.log('📊 Back button tracked with parameters:', { Sk_source: source, Augame: 'crossword_exit' });
     } catch (error) {
         console.error('Error tracking back button:', error);
     }
@@ -257,7 +263,7 @@ function trackModalClose(modalType = 'game_over') {
             'Augame': 'crossword_close'
         });
         
-        console.log('📊 Modal close tracked (crossword_close):', modalType);
+        console.log('📊 Modal close tracked with parameters:', { Sk_modal_type: modalType, Augame: 'crossword_close' });
     } catch (error) {
         console.error('Error tracking modal close:', error);
     }
@@ -278,7 +284,7 @@ function trackClaimCoins(coinsAmount) {
             'Sk_coins': coinsAmount
         });
         
-        console.log('📊 Coins claim tracked:', coinsAmount);
+        console.log('📊 Coins claim tracked with parameters:', { Sk_coins: coinsAmount });
     } catch (error) {
         console.error('Error tracking coins claim:', error);
     }
@@ -301,7 +307,7 @@ function trackSettingChange(settingName, newValue) {
             'Sk_value': newValue
         });
         
-        console.log('📊 Setting changed:', settingName, '=', newValue);
+        console.log('📊 Setting changed with parameters:', { Sk_setting: settingName, Sk_value: newValue });
     } catch (error) {
         console.error('Error tracking setting change:', error);
     }
@@ -322,7 +328,7 @@ function trackThemeChange(themeName) {
             'Sk_theme': themeName
         });
         
-        console.log('📊 Theme changed to:', themeName);
+        console.log('📊 Theme changed with parameters:', { Sk_theme: themeName });
     } catch (error) {
         console.error('Error tracking theme change:', error);
     }
@@ -343,7 +349,7 @@ function trackLanguageChange(language) {
             'Sk_language': language
         });
         
-        console.log('📊 Language changed to:', language);
+        console.log('📊 Language changed with parameters:', { Sk_language: language });
     } catch (error) {
         console.error('Error tracking language change:', error);
     }
@@ -364,7 +370,7 @@ function trackDifficultyChange(difficulty) {
             'Sk_difficulty': difficulty
         });
         
-        console.log('📊 Difficulty changed to:', difficulty);
+        console.log('📊 Difficulty changed with parameters:', { Sk_difficulty: difficulty });
     } catch (error) {
         console.error('Error tracking difficulty change:', error);
     }
@@ -385,7 +391,7 @@ function trackSoundToggle(isEnabled) {
             'Sk_enabled': isEnabled
         });
         
-        console.log('📊 Sound toggled:', isEnabled ? 'ON' : 'OFF');
+        console.log('📊 Sound toggled with parameters:', { Sk_enabled: isEnabled });
     } catch (error) {
         console.error('Error tracking sound toggle:', error);
     }
@@ -406,7 +412,7 @@ function trackVibrationToggle(isEnabled) {
             'Sk_enabled': isEnabled
         });
         
-        console.log('📊 Vibration toggled:', isEnabled ? 'ON' : 'OFF');
+        console.log('📊 Vibration toggled with parameters:', { Sk_enabled: isEnabled });
     } catch (error) {
         console.error('Error tracking vibration toggle:', error);
     }
@@ -426,7 +432,7 @@ function trackWebToAppBannerView() {
             'Sk_banner_type': 'app_install'
         });
         
-        console.log('📊 App banner view tracked');
+        console.log('📊 App banner view tracked with parameters:', { Sk_banner_type: 'app_install' });
     } catch (error) {
         console.error('Error tracking app banner view:', error);
     }
@@ -447,7 +453,7 @@ function trackWebToAppDownloadClick(source = 'button') {
             'Sk_source': source
         });
         
-        console.log('📊 App download click tracked from:', source);
+        console.log('📊 App download click tracked with parameters:', { Sk_source: source });
     } catch (error) {
         console.error('Error tracking app download:', error);
     }
@@ -467,7 +473,7 @@ function trackWebToAppBannerClose() {
             'Sk_banner_type': 'app_install'
         });
         
-        console.log('📊 App banner close tracked');
+        console.log('📊 App banner close tracked with parameters:', { Sk_banner_type: 'app_install' });
     } catch (error) {
         console.error('Error tracking app banner close:', error);
     }
@@ -490,7 +496,7 @@ function trackError(errorType, errorMessage) {
             'Sk_error_message': errorMessage
         });
         
-        console.error('📊 Error tracked:', errorType, errorMessage);
+        console.error('📊 Error tracked with parameters:', { Sk_error_type: errorType, Sk_error_message: errorMessage });
     } catch (error) {
         console.error('Error tracking error event:', error);
     }
@@ -511,7 +517,7 @@ function trackPageLoad(loadTime) {
             'Sk_load_time_ms': loadTime
         });
         
-        console.log('📊 Page load tracked:', loadTime, 'ms');
+        console.log('📊 Page load tracked with parameters:', { Sk_load_time_ms: loadTime });
     } catch (error) {
         console.error('Error tracking page load:', error);
     }
@@ -532,7 +538,7 @@ function trackGameLoadTime(loadTime) {
             'Sk_load_time_ms': loadTime
         });
         
-        console.log('📊 Game load tracked:', loadTime, 'ms');
+        console.log('📊 Game load tracked with parameters:', { Sk_load_time_ms: loadTime });
     } catch (error) {
         console.error('Error tracking game load:', error);
     }
@@ -554,7 +560,7 @@ function trackSessionStart() {
             'Sk_timestamp': timestamp
         });
         
-        console.log('📊 Session start tracked');
+        console.log('📊 Session start tracked with parameters:', { Sk_timestamp: timestamp });
     } catch (error) {
         console.error('Error tracking session start:', error);
     }
@@ -575,7 +581,7 @@ function trackSessionEnd(duration) {
             'Sk_duration_seconds': duration
         });
         
-        console.log('📊 Session end tracked:', duration, 'seconds');
+        console.log('📊 Session end tracked with parameters:', { Sk_duration_seconds: duration });
     } catch (error) {
         console.error('Error tracking session end:', error);
     }
