@@ -135,9 +135,13 @@ function trackGameComplete(finalScore, bestScore, wordsFound, totalWords, timeTa
             'event': 'game_data',
             'Augame': 'crossword_end',
             'final_score': finalScore,
+            'best_score': bestScore,
             'words_found': wordsFound,
             'total_words': totalWords,
-            'coins_earned': coinsEarned
+            'completion_rate': completionRate,
+            'time_taken': timeTaken,
+            'coins_earned': coinsEarned,
+            'all_words_found': isAllWordsFound
         });
         
         console.log('📊 Game complete tracked with parameters:', { Sk_score: finalScore, Sk_best_score: bestScore, Sk_completion: completionRate, Sk_coins: coinsEarned });
@@ -233,7 +237,9 @@ function trackBackButton(source = 'header') {
         // GA4 event (EXACT format from old game)
         window.dataLayer.push({
             'event': 'game_data',
-            'Augame': 'crossword_exit'
+            'Augame': 'crossword_exit',
+            'exit_source': source,
+            'action': 'back_button'
         });
         
         console.log('📊 Back button tracked with parameters:', { Sk_source: source, Augame: 'crossword_exit' });
@@ -260,7 +266,9 @@ function trackModalClose(modalType = 'game_over') {
         // GA4 event (EXACT format from old game)
         window.dataLayer.push({
             'event': 'game_data',
-            'Augame': 'crossword_close'
+            'Augame': 'crossword_close',
+            'modal_type': modalType,
+            'action': 'modal_close'
         });
         
         console.log('📊 Modal close tracked with parameters:', { Sk_modal_type: modalType, Augame: 'crossword_close' });
