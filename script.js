@@ -981,29 +981,42 @@ function giveHint() {
 elements.newGameBtn.addEventListener('click', startGame);
 elements.hintBtn.addEventListener('click', giveHint);
 
+// ── crossword_close: fired when the game-over modal is dismissed ──────────────
+// Fires on BOTH the ✕ close button AND the "फिर से खेलें" (Play Again) button,
+// because both actions close the modal — matching the old game's behaviour.
 if (elements.closeGameOverBtn) {
     elements.closeGameOverBtn.addEventListener('click', () => {
-        // Track modal close (fires crossword_close event)
         if (window.gameTracking) {
-            window.gameTracking.trackModalClose('game_over');
+            window.gameTracking.trackModalClose('game_over'); // → ep.augame=crossword_close
         }
-        
         elements.gameOverModal.classList.remove('show');
-        startGame(); // Refresh the game
+        startGame();
     });
 }
 
 elements.playAgainBtn.addEventListener('click', () => {
+    // crossword_close must fire here too — the old game fires it on any modal dismissal
+    if (window.gameTracking) {
+        window.gameTracking.trackModalClose('play_again');   // → ep.augame=crossword_close
+    }
     elements.gameOverModal.classList.remove('show');
     startGame();
 });
 
-// Track Back Button (crossword_exit)
+// ── crossword_exit: fired when user taps the back (←) button ─────────────────
+// Fire the event first, then navigate after a short delay so GTM has time to
+// flush the dataLayer push before the page unloads.
 if (elements.backBtn) {
     elements.backBtn.addEventListener('click', () => {
         if (window.gameTracking) {
-            window.gameTracking.trackBackButton('header');
+            window.gameTracking.trackBackButton('header');   // → ep.augame=crossword_exit
         }
+        // Navigate back after 200ms to allow GTM to process the event
+        setTimeout(() => {
+            if (window.history.length > 1) {
+                window.history.back();
+            }
+        }, 200);
     });
 }
 

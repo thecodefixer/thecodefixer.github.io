@@ -130,10 +130,12 @@ function trackGameComplete(finalScore, bestScore, wordsFound, totalWords, timeTa
             'Sk_coins': coinsEarned
         });
         
-        // GA4 event (EXACT format from old game)
+        // GA4 event — EXACT format from old game
+        // ⚠️  KEY MUST BE LOWERCASE 'augame' → GA4 maps this to ep.augame
+        //     Using 'Augame' (capital A) creates ep.Augame which is NOT tracked.
         window.dataLayer.push({
             'event': 'game_data',
-            'Augame': 'crossword_end',
+            'augame': 'crossword_end',          // ← lowercase, matches ep.augame in old game
             'final_score': finalScore,
             'best_score': bestScore,
             'words_found': wordsFound,
@@ -234,10 +236,11 @@ function trackBackButton(source = 'header') {
             'Sk_source': source
         });
         
-        // GA4 event (EXACT format from old game)
+        // GA4 event — EXACT format from old game
+        // ⚠️  KEY MUST BE LOWERCASE 'augame' → GA4 maps this to ep.augame
         window.dataLayer.push({
             'event': 'game_data',
-            'Augame': 'crossword_exit',
+            'augame': 'crossword_exit',          // ← lowercase, matches ep.augame in old game
             'exit_source': source,
             'action': 'back_button'
         });
@@ -263,10 +266,11 @@ function trackModalClose(modalType = 'game_over') {
             'Sk_modal_type': modalType
         });
         
-        // GA4 event (EXACT format from old game)
+        // GA4 event — EXACT format from old game
+        // ⚠️  KEY MUST BE LOWERCASE 'augame' → GA4 maps this to ep.augame
         window.dataLayer.push({
             'event': 'game_data',
-            'Augame': 'crossword_close',
+            'augame': 'crossword_close',         // ← lowercase, matches ep.augame in old game
             'modal_type': modalType,
             'action': 'modal_close'
         });
@@ -595,6 +599,45 @@ function trackSessionEnd(duration) {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// crossword_exit — fires when user closes the tab / navigates away mid-game
+// This mirrors the old game's behaviour of firing crossword_exit on page unload.
+// ─────────────────────────────────────────────────────────────────────────────
+(function attachExitTracking() {
+    let exitFired = false;
+
+    function fireExitEvent(source) {
+        if (exitFired) return;
+        exitFired = true;
+        try {
+            window.dataLayer.push({
+                'event': 'game_data',
+                'augame': 'crossword_exit',      // ← lowercase ep.augame
+                'exit_source': source,
+                'action': 'page_exit'
+            });
+            console.log('📊 crossword_exit fired on', source);
+        } catch (e) { /* silent */ }
+    }
+
+    // Tab/browser close or navigation away
+    window.addEventListener('beforeunload', () => fireExitEvent('beforeunload'));
+
+    // App switch / tab hidden (catches in-app webview backgrounding)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            fireExitEvent('visibilitychange');
+        }
+    });
+
+    // Reset the guard when the page becomes visible again (user came back)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            exitFired = false;
+        }
+    });
+}());
+
 // Make all functions available globally
 window.gameTracking = {
     trackGameStart,
@@ -624,4 +667,4 @@ window.gameTracking = {
     trackSessionEnd
 };
 
-console.log('✅ Shabd Khoj tracking initialized');
+console.log('✅ Shabd Khoj tracking initialized — ep.augame events: crossword_end ✓ crossword_exit ✓ crossword_close ✓');

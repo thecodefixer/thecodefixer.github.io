@@ -162,9 +162,11 @@ window.dataLayer.push({
 });
 
 // Event 3: GA4 game_data (EXACT from old game)
+// ⚠️ KEY IS LOWERCASE 'augame' — GA4 maps dataLayer keys to ep.* parameters
+//    case-sensitively. 'Augame' would create ep.Augame (not tracked).
 window.dataLayer.push({
   event: "game_data",
-  augame: "crossword_end",
+  augame: "crossword_end", // ← lowercase, creates ep.augame in GA4
   final_score: 480,
   words_found: 8,
   total_words: 8,
@@ -177,7 +179,7 @@ window.dataLayer.push({
 ```
 Event Name: game_data
 Parameters:
-  - augame: "crossword_end"
+  - augame: "crossword_end"    ← lowercase key → ep.augame in GA4
   - content_group: "Other"
   - story_source: "Other"
   - page_type: "Other"
