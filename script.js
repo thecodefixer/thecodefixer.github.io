@@ -10,10 +10,11 @@ const CONFIG = {
 };
 
 // Difficulty settings
+// Word counts match the PRD reward table: Easy=5, Medium=8, Hard=10
 const DIFFICULTY_SETTINGS = {
-    easy: { min: 5, max: 5, rows: 5, cols: 5, maxWordLength: 4 },
-    medium: { min: 8, max: 8, rows: 6, cols: 6, maxWordLength: 5 },
-    hard: { min: 10, max: 10, rows: 7, cols: 7, maxWordLength: 6 }
+    easy:   { min: 5,  max: 5,  rows: 5, cols: 5, maxWordLength: 4 },
+    medium: { min: 8,  max: 8,  rows: 6, cols: 6, maxWordLength: 5 },
+    hard:   { min: 10, max: 10, rows: 7, cols: 7, maxWordLength: 6 }
 };
 
 // Helper function to split text into grapheme clusters
@@ -842,7 +843,15 @@ function startGame() {
     renderGrid();
     renderWordList();
     clearConnectionLines();  // Clear previous connection lines
-    
+
+    // ── Debug overlay (only active when ?debug_test is in the URL) ────────────
+    // Expose game state globally so the debug toolbar can access it
+    window.game = game;
+    if (window.gameConfig?.debug?.isActive) {
+        // Small delay to ensure the grid cells are fully painted before overlaying
+        setTimeout(() => window.gameConfig.debug.renderDebugOverlay(game), 50);
+    }
+
     // Start timer
     if (game.timerInterval) {
         clearInterval(game.timerInterval);
@@ -853,39 +862,76 @@ function startGame() {
 
 function endGame(allWordsFound = false) {
     game.isGameActive = false;
-    
+
     if (game.timerInterval) {
         clearInterval(game.timerInterval);
     }
-    
+
     if (allWordsFound) {
         window.playSound('complete');
         game.vibrate([100, 50, 100]);
-        
+
         // Trigger celebration animations
         if (typeof triggerCelebration === 'function') {
             triggerCelebration();
         }
     }
-    
-    // Show game over modal
-    const coinsEarned = Math.floor(game.score / 10);
+
+    // ── Multi-level Reward Evaluation (backend logic in config.js) ────────────
+    // Delegate entirely to the backend evaluateReward() function.
+    // No threshold values or coin amounts live here — config.js owns them all.
+    const difficulty   = game.settings.difficulty; // 'easy' | 'medium' | 'hard'
+    const rewardResult = window.gameConfig
+        ? window.gameConfig.evaluateReward(difficulty, game.score)
+        : { eligible: false, coinsAwarded: 0, alreadyRewarded: false, message: 'Config not loaded' };
+
+    const coinsEarned = rewardResult.coinsAwarded;
+
+    // Update the coin display in the modal
     if (elements.coinsEarnedText) {
         elements.coinsEarnedText.textContent = coinsEarned;
     }
-    
+
+    // Show / hide the coin reward section based on eligibility
+    const modalTitle = document.querySelector('.modal-title');
+    if (modalTitle) {
+        // Display the coin reward header only when the user has earned coins
+        modalTitle.style.display = rewardResult.eligible ? '' : 'none';
+    }
+    if (elements.modalMessage) {
+        if (rewardResult.alreadyRewarded) {
+            // User already claimed coins today — show a friendly message
+            elements.modalMessage.textContent = game.settings.language === 'hindi'
+                ? 'आज के लिए कॉइन्स पहले ही मिल चुके हैं। कल फिर खेलें!'
+                : 'Coins already awarded today. Play again tomorrow!';
+        } else if (!rewardResult.eligible) {
+            // Score did not meet the threshold — show the default "good effort" message
+            const t = UI_TRANSLATIONS[game.settings.language];
+            elements.modalMessage.textContent = t ? t.modalMessage : 'अच्छा प्रयास!';
+        }
+        // If eligible (coins earned), updateUILanguage() will set the congratulations text
+    }
+
     // Update score displays
     if (elements.modalYourScore) elements.modalYourScore.textContent = game.score;
     if (elements.modalBestScore) elements.modalBestScore.textContent = game.bestScore;
-    
+
     // Update optional elements if they exist
     if (elements.finalScore) elements.finalScore.textContent = game.score;
     if (elements.wordsFound) elements.wordsFound.textContent = game.foundWords.length;
     if (elements.totalWords) elements.totalWords.textContent = game.currentWordSet.words.length;
-    
+
     // Update modal text to current language
     updateUILanguage(game.settings.language);
-    
+
+    // ── App Communication ─────────────────────────────────────────────────────
+    // Send the final Reward / No-Reward instruction to the native app.
+    // The app does NOT need to know about thresholds — it just acts on the result.
+    if (window.gameConfig) {
+        window.gameConfig.sendRewardToApp(rewardResult);
+    }
+
+    // ── Analytics ─────────────────────────────────────────────────────────────
     // Track game completion (fires crossword_end event)
     if (window.gameTracking) {
         window.gameTracking.trackGameComplete(
@@ -897,7 +943,7 @@ function endGame(allWordsFound = false) {
             coinsEarned
         );
     }
-    
+
     elements.gameOverModal.classList.add('show');
 }
 
