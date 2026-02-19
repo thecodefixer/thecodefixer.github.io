@@ -6,10 +6,19 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Client-type detection (web or app)
-// The app passes ?in_app=app in the URL; web sessions omit it.
+//
+// Supports TWO URL parameter formats for backward compatibility:
+//   New format:  ?in_app=app          (used by current Amar Ujala app URLs)
+//   Old format:  ?client=app          (used by older blade.php server-side)
+//
+// Either one being present with value "app" sets _request_client to "app".
 // ─────────────────────────────────────────────────────────────────────────────
 const urlParams = new URLSearchParams(window.location.search);
-const _request_client = urlParams.get("in_app") === "app" ? "app" : "web";
+const _request_client =
+    urlParams.get('in_app') === 'app' || urlParams.get('client') === 'app'
+        ? 'app'
+        : 'web';
+console.log('🌐 _request_client:', _request_client, '| in_app:', urlParams.get('in_app'), '| client:', urlParams.get('client'));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Multi-Level Reward Configuration Table
@@ -87,37 +96,41 @@ function evaluateReward(difficulty, finalScore) {
   }
 
   // ── Once-per-day guard ────────────────────────────────────────────────────
-  // Store the last reward date in localStorage (keyed by difficulty so each
-  // level is tracked independently — a user can earn from Easy AND Hard on
-  // the same day if they play both).
+  // Check if coins were already CLAIMED today (tracked in localStorage).
+  // NOTE: We only WRITE to localStorage when the user actually taps the Claim
+  //       button (in sendClaimToApp). This way, if the user earns coins but
+  //       closes the modal without claiming, they can still claim next time.
   const storageKey = `sk_reward_date_${difficulty}`;
   const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-  const lastRewardDate = localStorage.getItem(storageKey);
+  const lastClaimDate = localStorage.getItem(storageKey);
 
-  if (lastRewardDate === today) {
-    console.log(`🔒 Reward already issued today for difficulty: ${difficulty}`);
+  if (lastClaimDate === today) {
+    console.log(`🔒 Coins already claimed today for difficulty: ${difficulty}`);
     return {
       eligible: false,
       coinsAwarded: 0,
       alreadyRewarded: true,
-      message: `Coins already awarded today for ${difficulty} level.`,
+      storageKey,
+      message: `Coins already claimed today for ${difficulty} level.`,
     };
   }
 
   // ── Score threshold check ─────────────────────────────────────────────────
+  // Score must EXCEED (strictly greater than) the threshold.
   const meetsThreshold = finalScore > config.coinThreshold;
 
   if (meetsThreshold) {
-    // Record today's reward date so subsequent plays don't re-award
-    localStorage.setItem(storageKey, today);
-
+    // ⚠️ DO NOT write to localStorage here.
+    // Coins are marked as claimed only when the user taps "क्लेम करें".
+    // (sendClaimToApp() writes the date after the app bridge is called.)
     console.log(
-      `✅ Reward issued: ${config.coinsAwarded} coins for ${difficulty} (score ${finalScore} > ${config.coinThreshold})`,
+      `✅ Eligible: ${config.coinsAwarded} coins for ${difficulty} (score ${finalScore} > ${config.coinThreshold}). Waiting for Claim tap.`,
     );
     return {
       eligible: true,
       coinsAwarded: config.coinsAwarded,
       alreadyRewarded: false,
+      storageKey,   // passed along so sendClaimToApp() can mark it when claimed
       message: `Congratulations! You earned ${config.coinsAwarded} coins.`,
     };
   }
@@ -129,6 +142,7 @@ function evaluateReward(difficulty, finalScore) {
     eligible: false,
     coinsAwarded: 0,
     alreadyRewarded: false,
+    storageKey,
     message: `Score ${finalScore} did not meet the threshold of ${config.coinThreshold} for ${difficulty} level.`,
   };
 }
@@ -161,33 +175,50 @@ function prepareRewardModal(rewardResult) {
     if (_request_client === 'app' && rewardResult.eligible) {
         // ✔ User is inside the app AND score qualifies → show Claim button
         claimBtn.style.display = '';
-        claimBtn.disabled = false;  // re-enable in case of previous click
-        claimBtn.dataset.coins   = rewardResult.coinsAwarded;
-        claimBtn.dataset.claimed = 'false';
+        claimBtn.disabled = false;
+        claimBtn.style.opacity = '1';
+        claimBtn.dataset.coins      = rewardResult.coinsAwarded;
+        claimBtn.dataset.claimed    = 'false';
+        claimBtn.dataset.storageKey = rewardResult.storageKey || '';
+        console.log('🪙 Claim button shown — coins:', rewardResult.coinsAwarded);
     } else {
-        // Web session, or score didn't qualify, or already rewarded today → hide
+        // Web session, score below threshold, or already claimed today → hide
         claimBtn.style.display = 'none';
+        console.log('🚫 Claim button hidden — eligible:', rewardResult.eligible, '| client:', _request_client, '| alreadyRewarded:', rewardResult.alreadyRewarded);
     }
 }
 
 /**
- * sendClaimToApp(coins)
- * Fired ONLY when the user explicitly taps the “क्लेम करें” button.
- * Sends the reward event to the Amar Ujala native app bridge.
+ * sendClaimToApp(coins, storageKey)
+ * Fired ONLY when the user explicitly taps the claim button.
+ * Sends the reward event to the Amar Ujala native app bridge AND marks
+ * the reward as claimed in localStorage (once-per-day guard).
  *
- * @param {number} coins  — number of coins to credit
+ * @param {number} coins       - number of coins to credit
+ * @param {string} storageKey  - localStorage key returned by evaluateReward()
  */
-function sendClaimToApp(coins) {
+function sendClaimToApp(coins, storageKey) {
     if (_request_client !== 'app') return;  // safety guard
 
+    // Mark as claimed in localStorage BEFORE calling the bridge.
+    // This is the ONLY place we write the claim date.
+    // evaluateReward() no longer writes it, so users can replay and
+    // still see the Claim button until they actually tap it.
+    if (storageKey) {
+        const today = new Date().toISOString().slice(0, 10);
+        localStorage.setItem(storageKey, today);
+        console.log('📅 Claim recorded:', storageKey, '=', today);
+    }
+
     const payload = {
-        action: 'issue_coins',
-        coins: coins
+        action : 'issue_coins',
+        coins  : coins,
+        augame : 'shabdkhoj'
     };
 
     console.log('💰 Sending coin claim to app:', payload);
 
-    // Method 1: AuGame bridge (Amar Ujala Android / iOS app)
+    // Method 1: AuGame bridge (Amar Ujala Android / iOS native app)
     if (window.AuGame && typeof window.AuGame.gameEvent === 'function') {
         window.AuGame.gameEvent(JSON.stringify(payload));
         console.log('✅ AuGame.gameEvent() called');
@@ -199,11 +230,12 @@ function sendClaimToApp(coins) {
         console.log('✅ ReactNativeWebView.postMessage() called');
     }
 
-    // Method 3: GTM dataLayer (analytics / server-side tag can catch this)
+    // Method 3: GTM dataLayer (analytics)
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push({
-        event: 'shabdkhoj_coin_claimed',
-        coins_claimed: coins
+        event        : 'shabdkhoj_coin_claimed',
+        coins_claimed: coins,
+        augame       : 'shabdkhoj'
     });
 }
 

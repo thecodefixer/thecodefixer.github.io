@@ -1057,11 +1057,13 @@ if (claimCoinsBtn) {
         claimCoinsBtn.dataset.claimed = 'true';
         claimCoinsBtn.disabled = true;
 
-        const coins = parseInt(claimCoinsBtn.dataset.coins || '0', 10);
+        const coins      = parseInt(claimCoinsBtn.dataset.coins      || '0', 10);
+        const storageKey = claimCoinsBtn.dataset.storageKey || '';
 
-        // Send to app bridge (window.AuGame.gameEvent / ReactNativeWebView.postMessage)
+        // Send to app bridge + write localStorage claim date
+        // (storageKey is passed so sendClaimToApp can mark it as claimed today)
         if (window.gameConfig) {
-            window.gameConfig.sendClaimToApp(coins);
+            window.gameConfig.sendClaimToApp(coins, storageKey);
         }
 
         // Track in analytics
@@ -1069,12 +1071,12 @@ if (claimCoinsBtn) {
             window.gameTracking.trackClaimCoins(coins);
         }
 
-        // Visual feedback: update button text to confirm claim
+        // Visual feedback
         const btnText = document.getElementById('claimCoinsBtnText');
         if (btnText) btnText.textContent = '✅ क्लेम हो गया!';
         claimCoinsBtn.style.opacity = '0.6';
 
-        console.log(`🪙 ${coins} coins claimed and sent to app.`);
+        console.log(`🪙 ${coins} coins claimed and sent to app. storageKey: ${storageKey}`);
     });
 }
 
