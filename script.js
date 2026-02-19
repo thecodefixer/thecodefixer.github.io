@@ -85,7 +85,7 @@ function updateUILanguage(lang) {
     const newGameBtn = document.getElementById('newGameBtn');
     if (newGameBtn) newGameBtn.textContent = t.newGameBtn;
     
-    // Update game over modal labels (old elements - may not exist)
+    // Update game over modal labels
     const yourScoreLabel = document.getElementById('yourScoreLabel');
     if (yourScoreLabel) yourScoreLabel.textContent = t.yourScore;
     
@@ -94,18 +94,26 @@ function updateUILanguage(lang) {
     
     const wordsFoundLabel = document.getElementById('wordsFoundLabel');
     if (wordsFoundLabel) wordsFoundLabel.textContent = t.wordsFound;
-    
-    const playAgainBtn = document.getElementById('playAgainBtn');
-    if (playAgainBtn) playAgainBtn.textContent = t.playAgain;
-    
-    // Update new modal text elements
-    if (elements.modalCoinsText) elements.modalCoinsText.textContent = t.modalCoinsText;
+
+    // Update coin / congrats text elements (always apply these)
+    if (elements.modalCoinsText)      elements.modalCoinsText.textContent      = t.modalCoinsText;
     if (elements.modalCongratsPrefix) elements.modalCongratsPrefix.textContent = t.modalCongratsPrefix;
-    if (elements.modalCongratsText) elements.modalCongratsText.textContent = t.modalCongratsText;
-    if (elements.modalMessage) elements.modalMessage.textContent = t.modalMessage;
-    if (elements.playAgainText) elements.playAgainText.textContent = t.playAgainText;
-    if (elements.yourScoreLabel) elements.yourScoreLabel.textContent = t.yourScore;
-    if (elements.bestScoreLabel) elements.bestScoreLabel.textContent = t.bestScore;
+    if (elements.modalCongratsText)   elements.modalCongratsText.textContent   = t.modalCongratsText;
+    if (elements.playAgainText)       elements.playAgainText.textContent       = t.playAgainText;
+    if (elements.yourScoreLabel)      elements.yourScoreLabel.textContent      = t.yourScore;
+    if (elements.bestScoreLabel)      elements.bestScoreLabel.textContent      = t.bestScore;
+
+    // NOTE: modalMessage is intentionally NOT updated here.
+    // endGame() sets it based on eligibility AFTER calling this function,
+    // so we must not overwrite it blindly with the generic "Good Effort" text.
+    // Store the default text as a data attribute so endGame() can read it.
+    if (elements.modalMessage) {
+        elements.modalMessage.dataset.defaultText = t.modalMessage;
+    }
+
+    // Update Play Again button (preserve SVG, only update text span)
+    const playAgainTextEl = document.getElementById('playAgainText');
+    if (playAgainTextEl) playAgainTextEl.textContent = t.playAgainText;
 }
 
 // ===== Game State =====
@@ -844,6 +852,21 @@ function startGame() {
     renderWordList();
     clearConnectionLines();  // Clear previous connection lines
 
+    // Reset modal state so coin section and message are fresh for the next game
+    const modalTitle = document.querySelector('.modal-title');
+    if (modalTitle) modalTitle.style.display = 'none'; // Hidden until game ends
+    if (elements.modalMessage) elements.modalMessage.style.display = '';
+    const claimBtn = document.getElementById('claimCoinsBtn');
+    if (claimBtn) {
+        claimBtn.style.display = 'none';
+        claimBtn.style.opacity = '';
+        claimBtn.disabled = false;
+        claimBtn.dataset.claimed = 'false';
+        const btnText = document.getElementById('claimCoinsBtnText');
+        if (btnText) btnText.textContent = '🪙 क्लेम करें';
+    }
+
+
     // ── Debug overlay (only active when ?debug_test is in the URL) ────────────
     // Expose game state globally so the debug toolbar can access it
     window.game = game;
@@ -887,29 +910,62 @@ function endGame(allWordsFound = false) {
 
     const coinsEarned = rewardResult.coinsAwarded;
 
-    // Update the coin display in the modal
+    // ── Step 1: Language update first ────────────────────────────────────────
+    // Sets all modal labels, congrats text for the active language.
+    // Does NOT set modalMessage — endGame controls that below.
+    updateUILanguage(game.settings.language);
+
+    // ── Step 2: Coin header ───────────────────────────────────────────────────
+    // .modal-title  →  the "🪙 N coins के लिए बधाई!" banner at the top
+    // Old game equivalent: #msg_with_coin
     if (elements.coinsEarnedText) {
         elements.coinsEarnedText.textContent = coinsEarned;
     }
-
-    // Show / hide the coin reward section based on eligibility
     const modalTitle = document.querySelector('.modal-title');
     if (modalTitle) {
-        // Display the coin reward header only when the user has earned coins
+        // Show coin banner ONLY when the user qualifies for coins
         modalTitle.style.display = rewardResult.eligible ? '' : 'none';
     }
+
+    // ── Step 3: Message text ──────────────────────────────────────────────────
+    // Old game equivalent: #msg_with_coin visible  → #msg_without_coin hidden
+    //                      #msg_with_coin hidden   → #msg_without_coin visible
     if (elements.modalMessage) {
-        if (rewardResult.alreadyRewarded) {
-            // User already claimed coins today — show a friendly message
+        if (rewardResult.eligible) {
+            // Coin banner already says "बधाई!" — hide the plain message
+            elements.modalMessage.style.display = 'none';
+        } else if (rewardResult.alreadyRewarded) {
+            elements.modalMessage.style.display = '';
             elements.modalMessage.textContent = game.settings.language === 'hindi'
                 ? 'आज के लिए कॉइन्स पहले ही मिल चुके हैं। कल फिर खेलें!'
                 : 'Coins already awarded today. Play again tomorrow!';
-        } else if (!rewardResult.eligible) {
-            // Score did not meet the threshold — show the default "good effort" message
-            const t = UI_TRANSLATIONS[game.settings.language];
-            elements.modalMessage.textContent = t ? t.modalMessage : 'अच्छा प्रयास!';
+        } else {
+            // Score below threshold — show "Good Effort"
+            elements.modalMessage.style.display = '';
+            elements.modalMessage.textContent =
+                elements.modalMessage.dataset.defaultText ||
+                (game.settings.language === 'hindi' ? 'अच्छा प्रयास!' : 'Good Effort!');
         }
-        // If eligible (coins earned), updateUILanguage() will set the congratulations text
+    }
+
+    // ── Step 4: Button visibility ─────────────────────────────────────────────
+    //
+    // Matching old game (shabdkhoj.blade.php lines 1238–1247) EXACTLY:
+    //
+    //  ┌──────────────────┬────────────────────────────────────────────────────┐
+    //  │ playAgainBtn     │ ALWAYS visible  (= old game's #refresh_popup)      │
+    //  │ claimCoinsBtn    │ Visible ONLY when client=app AND score≥threshold   │
+    //  │                  │ (= old game's #claim button)                        │
+    //  └──────────────────┴────────────────────────────────────────────────────┘
+
+    // Play Again — ALWAYS shown so users can always restart
+    if (elements.playAgainBtn) {
+        elements.playAgainBtn.style.display = '';
+    }
+
+    // Claim button — config.js decides (app-only, score-threshold check)
+    if (window.gameConfig) {
+        window.gameConfig.prepareRewardModal(rewardResult);
     }
 
     // Update score displays
@@ -921,17 +977,8 @@ function endGame(allWordsFound = false) {
     if (elements.wordsFound) elements.wordsFound.textContent = game.foundWords.length;
     if (elements.totalWords) elements.totalWords.textContent = game.currentWordSet.words.length;
 
-    // Update modal text to current language
-    updateUILanguage(game.settings.language);
-
-    // ── App Communication ─────────────────────────────────────────────────────
-    // Send the final Reward / No-Reward instruction to the native app.
-    // The app does NOT need to know about thresholds — it just acts on the result.
-    if (window.gameConfig) {
-        window.gameConfig.sendRewardToApp(rewardResult);
-    }
-
     // ── Analytics ─────────────────────────────────────────────────────────────
+
     // Track game completion (fires crossword_end event)
     if (window.gameTracking) {
         window.gameTracking.trackGameComplete(
@@ -998,6 +1045,38 @@ elements.playAgainBtn.addEventListener('click', () => {
     elements.gameOverModal.classList.remove('show');
     startGame();
 });
+
+// ── Claim Coins button — matches old game's #claim button ─────────────────────
+// Only shown in-app when the user has earned coins.
+// Sends the reward to the app and disables itself to prevent double-claim.
+const claimCoinsBtn = document.getElementById('claimCoinsBtn');
+if (claimCoinsBtn) {
+    claimCoinsBtn.addEventListener('click', () => {
+        // Prevent double-tapping
+        if (claimCoinsBtn.dataset.claimed === 'true') return;
+        claimCoinsBtn.dataset.claimed = 'true';
+        claimCoinsBtn.disabled = true;
+
+        const coins = parseInt(claimCoinsBtn.dataset.coins || '0', 10);
+
+        // Send to app bridge (window.AuGame.gameEvent / ReactNativeWebView.postMessage)
+        if (window.gameConfig) {
+            window.gameConfig.sendClaimToApp(coins);
+        }
+
+        // Track in analytics
+        if (window.gameTracking) {
+            window.gameTracking.trackClaimCoins(coins);
+        }
+
+        // Visual feedback: update button text to confirm claim
+        const btnText = document.getElementById('claimCoinsBtnText');
+        if (btnText) btnText.textContent = '✅ क्लेम हो गया!';
+        claimCoinsBtn.style.opacity = '0.6';
+
+        console.log(`🪙 ${coins} coins claimed and sent to app.`);
+    });
+}
 
 // ── crossword_exit: fires ONLY when the back (←) header button is tapped ─────
 // Matches old game: pressing back to leave the game = crossword_exit

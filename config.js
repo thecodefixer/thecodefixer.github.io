@@ -134,44 +134,77 @@ function evaluateReward(difficulty, finalScore) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// App Communication Helper
-// Sends the reward result back to the native app via the JavaScript bridge
-// that the Amar Ujala app injects (window.AuGame / postMessage).
-// The web view only calls this when in_app=app is present in the URL.
+// App Communication Helper — OLD GAME EXACT FLOW
+//
+// FLOW (matches shabdkhoj.blade.php → shabdkhoj.min.js exactly):
+//   1. Game ends → evaluateReward() checks score vs threshold
+//   2. If eligible → “क्लेम करें” (Claim) button is shown in the modal
+//   3. User TAPS the Claim button → sendClaimToApp() fires
+//   4. App receives the event → backend credits coins to the logged-in user
+//
+// ⚠️  Coins are NEVER credited automatically — only on explicit Claim tap.
+//      This prevents double-crediting if the user closes and reopens the modal.
 // ─────────────────────────────────────────────────────────────────────────────
-function sendRewardToApp(rewardResult) {
-  if (_request_client !== "app") return; // Only communicate when inside the app
 
-  const payload = {
-    action: rewardResult.eligible ? "issue_coins" : "no_reward",
-    coins: rewardResult.coinsAwarded,
-    alreadyRewarded: rewardResult.alreadyRewarded,
-    message: rewardResult.message,
-  };
+/**
+ * prepareRewardModal(rewardResult)
+ * Called from endGame() immediately after the modal opens.
+ * Shows or hides the Claim button based on eligibility.
+ * Does NOT send anything to the app — waits for user tap.
+ *
+ * @param {Object} rewardResult  — return value of evaluateReward()
+ */
+function prepareRewardModal(rewardResult) {
+    const claimBtn = document.getElementById('claimCoinsBtn');
+    if (!claimBtn) return;
 
-  console.log("📲 Sending reward payload to app:", payload);
+    if (_request_client === 'app' && rewardResult.eligible) {
+        // ✔ User is inside the app AND score qualifies → show Claim button
+        claimBtn.style.display = '';
+        claimBtn.disabled = false;  // re-enable in case of previous click
+        claimBtn.dataset.coins   = rewardResult.coinsAwarded;
+        claimBtn.dataset.claimed = 'false';
+    } else {
+        // Web session, or score didn't qualify, or already rewarded today → hide
+        claimBtn.style.display = 'none';
+    }
+}
 
-  // Method 1: AuGame bridge (used by Amar Ujala Android/iOS app)
-  if (window.AuGame && typeof window.AuGame.gameEvent === "function") {
-    window.AuGame.gameEvent(JSON.stringify(payload));
-  }
+/**
+ * sendClaimToApp(coins)
+ * Fired ONLY when the user explicitly taps the “क्लेम करें” button.
+ * Sends the reward event to the Amar Ujala native app bridge.
+ *
+ * @param {number} coins  — number of coins to credit
+ */
+function sendClaimToApp(coins) {
+    if (_request_client !== 'app') return;  // safety guard
 
-  // Method 2: postMessage (fallback for web-views that support it)
-  if (
-    window.ReactNativeWebView &&
-    typeof window.ReactNativeWebView.postMessage === "function"
-  ) {
-    window.ReactNativeWebView.postMessage(JSON.stringify(payload));
-  }
+    const payload = {
+        action: 'issue_coins',
+        coins: coins
+    };
 
-  // Method 3: dataLayer push for GTM tracking
-  window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push({
-    event: "shabdkhoj_reward",
-    reward_eligible: rewardResult.eligible,
-    coins_awarded: rewardResult.coinsAwarded,
-    already_rewarded: rewardResult.alreadyRewarded,
-  });
+    console.log('💰 Sending coin claim to app:', payload);
+
+    // Method 1: AuGame bridge (Amar Ujala Android / iOS app)
+    if (window.AuGame && typeof window.AuGame.gameEvent === 'function') {
+        window.AuGame.gameEvent(JSON.stringify(payload));
+        console.log('✅ AuGame.gameEvent() called');
+    }
+
+    // Method 2: ReactNative WebView bridge (fallback)
+    if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
+        window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+        console.log('✅ ReactNativeWebView.postMessage() called');
+    }
+
+    // Method 3: GTM dataLayer (analytics / server-side tag can catch this)
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+        event: 'shabdkhoj_coin_claimed',
+        coins_claimed: coins
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -609,7 +642,8 @@ window.gameConfig = {
     encryptionKey: k,
     hindiWords: hindiWordsFromDB,
     evaluateReward,
-    sendRewardToApp,
+    prepareRewardModal,
+    sendClaimToApp,
     debug: {
         isActive: DEBUG_MODE,
         renderDebugOverlay
